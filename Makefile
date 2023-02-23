@@ -55,7 +55,7 @@ install: all
 	# install vigr
 	install -m 0755 vigr/vigr.sh $(DESTDIR)/$(PREFIX)/sbin/vigr
 	# install chpass
-	install -m 0755 out/chsh $(DESTDIR)/$(PREFIX)/bin/chpass
+	install -m 0755 out/chpass $(DESTDIR)/$(PREFIX)/bin/chpass
 	ln -s chpass $(DESTDIR)/$(PREFIX)/bin/chfn
 	ln -s chpass $(DESTDIR)/$(PREFIX)/bin/chsh
 	# install doc
