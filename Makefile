@@ -32,9 +32,12 @@ clean:
 
 install: pw
 	# install pw
-	install -d $(DESTDIR)/$(PREFIX)/bin
-	install -m 0755 out/pw $(DESTDIR)/$(PREFIX)/bin/pw
+	install -d $(DESTDIR)/$(PREFIX)/sbin
+	install -m 0755 out/pw $(DESTDIR)/$(PREFIX)/sbin/pw
+	# install adduser
+	install -m 0755 adduser/adduser.sh $(DESTDIR)/$(PREFIX)/sbin/adduser
+	install -m 0755 adduser/rmuser.sh $(DESTDIR)/$(PREFIX)/sbin/rmuser
 	# install doc
 	install -d $(DESTDIR)/$(PREFIX)/share/man/man{5,8}
-	install -m 0644 pw/$(filter %.5,$(MAN)) $(DESTDIR)/$(PREFIX)/share/man/man5/
-	install -m 0644 pw/$(filter %.8,$(MAN)) $(DESTDIR)/$(PREFIX)/share/man/man8/
+	install -m 0644 */*.5 $(DESTDIR)/$(PREFIX)/share/man/man5/
+	install -m 0644 */*.8 $(DESTDIR)/$(PREFIX)/share/man/man8/

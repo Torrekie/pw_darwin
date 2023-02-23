@@ -40,6 +40,15 @@ static const char rcsid[] =
 
 extern long long pw_strtonum(const char *__numstr, long long __minval, long long __maxval, const char **__errstrp);
 
+#ifdef __APPLE__
+#define SKEL_DIR "/System/Library/User Template"
+// it should be /Users but we don't actually have its functionality on Embedded
+#define HOME_DIR "/var"
+#else
+#define SKEL_DIR "/usr/share/skel"
+#define HOME_DIR "/home"
+#endif
+
 #define debugging 0
 
 enum {
@@ -92,10 +101,10 @@ static struct userconf config =
 	0,			/* Reuse uids? */
 	0,			/* Reuse gids? */
 	NULL,			/* NIS version of the passwd file */
-	"/usr/share/skel",	/* Where to obtain skeleton files */
+	SKEL_DIR,		/* Where to obtain skeleton files */
 	NULL,			/* Mail to send to new accounts */
 	"/var/log/userlog",	/* Where to log changes */
-	"/home",		/* Where to create home directory */
+	HOME_DIR,		/* Where to create home directory */
 	_DEF_DIRMODE,		/* Home directory perms, modified by umask */
 	"/bin",			/* Where shells are located */
 	system_shells,		/* List of shells (first is default) */
@@ -302,7 +311,7 @@ read_userconfig(char const * file)
 				break;
 			case _UC_HOMEROOT:
 				config.home = (q == NULL || !boolean_val(q, 1))
-					? "/home" : newstr(q);
+					? HOME_DIR : newstr(q);
 				break;
 			case _UC_HOMEMODE:
 				modeset = setmode(q);

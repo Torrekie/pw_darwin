@@ -69,7 +69,11 @@ static struct passwd fakeuser = {
 	0,
 	"",
 	"User &",
+#ifdef __FreeBSD__
 	"/nonexistent",
+#else
+	"/var/empty",
+#endif
 	"/bin/sh",
 	0,
 #ifdef __FreeBSD__
