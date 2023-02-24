@@ -1,26 +1,6 @@
-/*
- * Copyright (c) 1999-2016 Apple Inc. All rights reserved.
- *
- * @APPLE_LICENSE_HEADER_START@
- *
- * This file contains Original Code and/or Modifications of Original Code
- * as defined in and that are subject to the Apple Public Source License
- * Version 2.0 (the 'License'). You may not use this file except in
- * compliance with the License. Please obtain a copy of the License at
- * http://www.opensource.apple.com/apsl/ and read it before using this
- * file.
- *
- * The Original Code and all software distributed under the License are
- * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
- * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
- * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
- * Please see the License for the specific language governing rights and
- * limitations under the License.
- *
- * @APPLE_LICENSE_HEADER_END@
- */
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2002 Networks Associates Technology, Inc.
@@ -61,15 +41,13 @@
  */
 
 #if 0
-#if 0
 #ifndef lint
 static char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/chpass/edit.c,v 1.23 2003/04/09 18:18:42 des Exp $");
-#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -84,61 +62,35 @@ __FBSDID("$FreeBSD: src/usr.bin/chpass/edit.c,v 1.23 2003/04/09 18:18:42 des Exp
 #include <string.h>
 #include <unistd.h>
 
-#ifndef OPEN_DIRECTORY
 #include <pw_scan.h>
 #include <libutil.h>
-#endif
 
 #include "chpass.h"
 
-#ifdef OPEN_DIRECTORY
-static int display(const char *tfn, CFDictionaryRef attrs);
-static CFDictionaryRef verify(const char *tfn, CFDictionaryRef attrs);
-#else
 static int display(const char *tfn, struct passwd *pw);
 static struct passwd *verify(const char *tfn, struct passwd *pw);
-#endif
 
-#ifdef OPEN_DIRECTORY
-CFDictionaryRef
-edit(const char *tfn, CFDictionaryRef pw)
-#else
 struct passwd *
 edit(const char *tfn, struct passwd *pw)
-#endif
 {
-#ifdef OPEN_DIRECTORY
-	CFDictionaryRef npw;
-#else
 	struct passwd *npw;
-#endif
 	char *line;
 	size_t len;
 
 	if (display(tfn, pw) == -1)
 		return (NULL);
 	for (;;) {
-#ifdef OPEN_DIRECTORY
-		switch (editfile(tfn)) {
-#else
 		switch (pw_edit(1)) {
-#endif
 		case -1:
 			return (NULL);
 		case 0:
-#ifdef OPEN_DIRECTORY
-			return (NULL);
-#else
 			return (pw_dup(pw));
-#endif
 		default:
 			break;
 		}
 		if ((npw = verify(tfn, pw)) != NULL)
 			return (npw);
-#ifndef OPEN_DIRECTORY
 		free(npw);
-#endif
 		printf("re-edit the password file? ");
 		fflush(stdout);
 		if ((line = fgetln(stdin, &len)) == NULL) {
@@ -155,54 +107,19 @@ edit(const char *tfn, struct passwd *pw)
  *	print out the file for the user to edit; strange side-effect:
  *	set conditional flag if the user gets to edit the shell.
  */
-#if OPEN_DIRECTORY
-static int
-display(const char *tfn, CFDictionaryRef attrs)
-#else
 static int
 display(const char *tfn, struct passwd *pw)
-#endif
 {
 	FILE *fp;
-#ifndef OPEN_DIRECTORY
 	char *bp, *gecos, *p;
-#endif
 
 	if ((fp = fopen(tfn, "w")) == NULL) {
 		warn("%s", tfn);
 		return (-1);
 	}
 
-#ifdef OPEN_DIRECTORY
-	CFArrayRef values = CFDictionaryGetValue(attrs, kODAttributeTypeRecordName);
-	CFStringRef username = (values && CFArrayGetCount(values)) > 0 ? CFArrayGetValueAtIndex(values, 0) : NULL;
-
-	(void)cfprintf(fp,
-		"# Changing user information for %@.\n"
-	    "# Use \"passwd\" to change the password.\n"
-	    "##\n"
-		"# Open Directory%s%@\n"
-		"##\n",
-		username,
-		DSPath ? ": " : "",
-		DSPath ? DSPath : CFSTR(""));
-
-	int ndisplayed = 0;
-	ENTRY* ep;
-	for (ep = list; ep->prompt; ep++)
-		if (!ep->restricted) {
-			ep->display(attrs, *ep->attrName, ep->prompt, fp);
-			ndisplayed++;
-		}
-	if(!ndisplayed) {
-		(void)fprintf(fp, "###################################\n");
-		(void)fprintf(fp, "# No fields are available to change\n");
-		(void)fprintf(fp, "###################################\n");
-	}
-#else /* OPEN_DIRECTORY */
 	(void)fprintf(fp,
-	    "# Changing user information for %s.\n"
-	    "##\n", pw->pw_name);
+	    "#Changing user information for %s.\n", pw->pw_name);
 	if (master_mode) {
 		(void)fprintf(fp, "Login: %s\n", pw->pw_name);
 		(void)fprintf(fp, "Password: %s\n", pw->pw_passwd);
@@ -274,26 +191,16 @@ display(const char *tfn, struct passwd *pw)
 	  (void)fprintf(fp, "Other information: %s\n", bp);
 
 	free(gecos);
-#endif /* OPEN_DIRECTORY */
 
 	(void)fchown(fileno(fp), getuid(), getgid());
 	(void)fclose(fp);
 	return (0);
 }
 
-#ifdef OPEN_DIRECTORY
-static CFDictionaryRef
-verify(const char* tfn, CFDictionaryRef pw)
-#else
 static struct passwd *
 verify(const char *tfn, struct passwd *pw)
-#endif
 {
-#ifdef OPEN_DIRECTORY
-	CFMutableDictionaryRef npw;
-#else
 	struct passwd *npw;
-#endif
 	ENTRY *ep;
 	char *buf, *p, *val;
 	struct stat sb;
@@ -301,27 +208,18 @@ verify(const char *tfn, struct passwd *pw)
 	int line;
 	size_t len;
 
-#ifdef OPEN_DIRECTORY
-	if ((npw = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks)) == NULL)
-		return (NULL);
-#else
 	if ((pw = pw_dup(pw)) == NULL)
 		return (NULL);
-#endif
 	if ((fp = fopen(tfn, "r")) == NULL ||
 	    fstat(fileno(fp), &sb) == -1) {
 		warn("%s", tfn);
-#ifndef OPEN_DIRECTORY
 		free(pw);
-#endif
 		return (NULL);
 	}
 	if (sb.st_size == 0) {
 		warnx("corrupted temporary file");
 		fclose(fp);
-#ifndef OPEN_DIRECTORY
 		free(pw);
-#endif
 		return (NULL);
 	}
 	val = NULL;
@@ -362,27 +260,14 @@ verify(const char *tfn, struct passwd *pw)
 				    tfn, ep->prompt, val);
 				goto bad;
 			}
-#ifdef OPEN_DIRECTORY
-			if ((ep->func)(val, NULL, NULL))
-				goto bad;
-			{
-				CFStringRef str = CFStringCreateWithCString(NULL, val, kCFStringEncodingUTF8);
-				if (str) {
-					CFDictionarySetValue(npw, *ep->attrName, str);
-					CFRelease(str);
-				}
-			}
-#else
 			if ((ep->func)(val, pw, ep))
 				goto bad;
-#endif
 			break;
 		}
 	}
 	free(val);
 	fclose(fp);
 
-#ifndef OPEN_DIRECTORY
 	/* Build the gecos field. */
 	len = asprintf(&p, "%s,%s,%s,%s,%s", list[E_NAME].save,
 	    list[E_LOCATE].save, list[E_BPHONE].save,
@@ -403,13 +288,10 @@ verify(const char *tfn, struct passwd *pw)
 		return (NULL);
 	}
 	npw = pw_scan(buf, PWSCAN_WARN|PWSCAN_MASTER);
-#endif /* !OPEN_DIRECTORY */
 	free(buf);
 	return (npw);
 bad:
-#ifndef OPEN_DIRECTORY
 	free(pw);
-#endif
 	free(val);
 	fclose(fp);
 	return (NULL);

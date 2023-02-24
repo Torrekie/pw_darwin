@@ -1,26 +1,6 @@
-/*
- * Copyright (c) 1999-2016 Apple Inc. All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
  *
- * @APPLE_LICENSE_HEADER_START@
- *
- * This file contains Original Code and/or Modifications of Original Code
- * as defined in and that are subject to the Apple Public Source License
- * Version 2.0 (the 'License'). You may not use this file except in
- * compliance with the License. Please obtain a copy of the License at
- * http://www.opensource.apple.com/apsl/ and read it before using this
- * file.
- *
- * The Original Code and all software distributed under the License are
- * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
- * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
- * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
- * Please see the License for the specific language governing rights and
- * limitations under the License.
- *
- * @APPLE_LICENSE_HEADER_END@
- */
-/*
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2002 Networks Associates Technology, Inc.
@@ -61,15 +41,13 @@
  */
 
 #if 0
-#if 0
 #ifndef lint
 static char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/chpass/field.c,v 1.9 2004/01/18 21:46:39 charnier Exp $");
-#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -97,12 +75,10 @@ p_login(char *p, struct passwd *pw, ENTRY *ep __unused)
 		warnx("login names may not begin with a hyphen");
 		return (-1);
 	}
-#ifndef OPEN_DIRECTORY
 	if (!(pw->pw_name = strdup(p))) {
 		warnx("can't save entry");
 		return (-1);
 	}
-#endif
 	if (strchr(p, '.'))
 		warnx("\'.\' is dangerous in a login name");
 	for (; *p; ++p)
@@ -117,12 +93,10 @@ p_login(char *p, struct passwd *pw, ENTRY *ep __unused)
 int
 p_passwd(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
-#ifndef OPEN_DIRECTORY
 	if (!(pw->pw_passwd = strdup(p))) {
 		warnx("can't save password entry");
 		return (-1);
 	}
-#endif
 
 	return (0);
 }
@@ -143,14 +117,12 @@ p_uid(char *p, struct passwd *pw, ENTRY *ep __unused)
 		return (-1);
 	}
 	errno = 0;
-	id = (uid_t)strtoul(p, &np, 10);
+	id = strtoul(p, &np, 10);
 	if (*np || (id == (uid_t)ULONG_MAX && errno == ERANGE)) {
 		warnx("illegal uid");
 		return (-1);
 	}
-#ifndef OPEN_DIRECTORY
 	pw->pw_uid = id;
-#endif
 	return (0);
 }
 
@@ -171,20 +143,16 @@ p_gid(char *p, struct passwd *pw, ENTRY *ep __unused)
 			warnx("unknown group %s", p);
 			return (-1);
 		}
-#ifndef OPEN_DIRECTORY
 		pw->pw_gid = gr->gr_gid;
-#endif
 		return (0);
 	}
 	errno = 0;
-	id = (gid_t)strtoul(p, &np, 10);
+	id = strtoul(p, &np, 10);
 	if (*np || (id == (uid_t)ULONG_MAX && errno == ERANGE)) {
 		warnx("illegal gid");
 		return (-1);
 	}
-#ifndef OPEN_DIRECTORY
 	pw->pw_gid = id;
-#endif
 	return (0);
 }
 
@@ -192,12 +160,10 @@ p_gid(char *p, struct passwd *pw, ENTRY *ep __unused)
 int
 p_class(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
-#ifndef OPEN_DIRECTORY
 	if (!(pw->pw_class = strdup(p))) {
 		warnx("can't save entry");
 		return (-1);
 	}
-#endif
 
 	return (0);
 }
@@ -206,11 +172,9 @@ p_class(char *p, struct passwd *pw, ENTRY *ep __unused)
 int
 p_change(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
-#ifndef OPEN_DIRECTORY
 	if (!atot(p, &pw->pw_change))
 		return (0);
 	warnx("illegal date for change field");
-#endif
 	return (-1);
 }
 
@@ -218,11 +182,9 @@ p_change(char *p, struct passwd *pw, ENTRY *ep __unused)
 int
 p_expire(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
-#ifndef OPEN_DIRECTORY
 	if (!atot(p, &pw->pw_expire))
 		return (0);
 	warnx("illegal date for expire field");
-#endif
 	return (-1);
 }
 
@@ -230,12 +192,10 @@ p_expire(char *p, struct passwd *pw, ENTRY *ep __unused)
 int
 p_gecos(char *p, struct passwd *pw __unused, ENTRY *ep)
 {
-#ifndef OPEN_DIRECTORY
 	if (!(ep->save = strdup(p))) {
 		warnx("can't save entry");
 		return (-1);
 	}
-#endif
 	return (0);
 }
 
@@ -247,29 +207,19 @@ p_hdir(char *p, struct passwd *pw, ENTRY *ep __unused)
 		warnx("empty home directory field");
 		return (-1);
 	}
-#ifndef OPEN_DIRECTORY
 	if (!(pw->pw_dir = strdup(p))) {
 		warnx("can't save entry");
 		return (-1);
 	}
-#endif
 	return (0);
 }
-
 
 /* ARGSUSED */
 int
 p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	struct stat sbuf;
-#ifdef OPEN_DIRECTORY
-	struct passwd lpw;
-	pw = &lpw;
-	memset(pw, 0, sizeof(lpw));
-	pw->pw_shell = p;
-#endif
 
-#ifndef OPEN_DIRECTORY
 	if (!*p) {
 		pw->pw_shell = strdup(_PATH_BSHELL);
 		return (0);
@@ -279,24 +229,19 @@ p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 		warnx("%s: current shell non-standard", pw->pw_shell);
 		return (-1);
 	}
-#endif /* !OPEN_DIRECTORY */
 	if (!ok_shell(p)) {
 		if (!master_mode) {
 			warnx("%s: non-standard shell", p);
 			return (-1);
 		}
-#ifndef OPEN_DIRECTORY
 		pw->pw_shell = strdup(p);
-#endif
 	}
-#ifndef OPEN_DIRECTORY
 	else
 		pw->pw_shell = dup_shell(p);
 	if (!pw->pw_shell) {
 		warnx("can't save entry");
 		return (-1);
 	}
-#endif
 	if (stat(pw->pw_shell, &sbuf) < 0) {
 		if (errno == ENOENT)
 			warnx("WARNING: shell '%s' does not exist",
@@ -316,30 +261,3 @@ p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 	}
 	return (0);
 }
-
-#ifdef OPEN_DIRECTORY
-#include <uuid/uuid.h>
-/* ARGSUSED */
-int
-p_uuid(char *p, struct passwd *pw __unused, ENTRY *ep)
-{
-	uuid_t uu;
-	if (uuid_parse(p, uu) != 0) {
-		warnx("invalid UUID");
-		return (-1);
-	}
-	return (0);
-}
-
-void
-display_string(CFDictionaryRef attrs, CFStringRef attrName, const char* prompt, FILE *fp)
-{
-	CFTypeRef value = CFSTR("");
-	CFArrayRef values = CFDictionaryGetValue(attrs, attrName);
-	if (values) {
-		value = CFArrayGetCount(values) > 0 ? CFArrayGetValueAtIndex(values, 0) : NULL;
-		if (value && CFGetTypeID(value) != CFStringGetTypeID()) value = NULL;
-	}
-	cfprintf(fp, "%s: %@\n", prompt, value);
-}
-#endif /* OPEN_DIRECTORY */

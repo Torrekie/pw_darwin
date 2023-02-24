@@ -92,6 +92,47 @@ static char	*pw_password(struct userconf * cnf, char const * user);
 static char	*shell_path(char const * path, char *shells[], char *sh);
 static void	rmat(uid_t uid);
 
+#ifdef __APPLE__
+// Torrekie: Define this at here to avoid truncating (kinda useless
+// As of iOS 14
+static const char *system_users[32] = {
+	"nobody",
+	"root",
+	"mobile",
+	"daemon",
+	"_ftp",
+	"_networkd",
+	"_wireless",
+	"_installd",
+	"_neagent",
+	"_ifccd",
+	"_securityd",
+	"_mdnsresponder",
+	"_sshd",
+	"_unknown",
+	"_distnote",
+	"_astris",
+	"_ondemand",
+	"_findmydevice",
+	"_datadetectors",
+	"_captiveagent",
+	"_analyticsd",
+	"_nanalyticsd",
+	"_timed",
+	"_gpsd",
+	"_reportmemoryexception",
+	"_diskimagesiod",
+	"_logd",
+	"_iconservices",
+	"_fud",
+	"_knowledgegraphd",
+	"_coreml",
+	"_trustd"
+};
+#else
+static const char *system_users[1] = { "root" };
+#endif
+
 static void
 mkdir_home_parents(int dfd, const char *dir)
 {
@@ -920,12 +961,21 @@ pw_user_del(int argc, char **argv, char *arg1)
 	if (name == NULL)
 		name = pwd->pw_name;
 
-	if (strcmp(pwd->pw_name, "root") == 0)
-		errx(EX_DATAERR, "cannot remove user 'root'");
+	// Avoid system users to be removed
+	for (int i = 0; i < (sizeof(system_users) / sizeof(system_users[0])); i++) {
+		if (strcmp(pwd->pw_name, system_users[i]) == 0)
+			errx(EX_DATAERR, "cannot remove user '%s'", system_users[i]);
+	}
 
 	if (!PWALTDIR()) {
 		/* Remove crontabs */
-		snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
+		snprintf(file, sizeof(file),
+#ifdef __APPLE__
+		    "/usr/lib/cron/tabs/%s"
+#else
+		    "/var/cron/tabs/%s"
+#endif
+		    , pwd->pw_name);
 		if (access(file, F_OK) == 0) {
 			snprintf(file, sizeof(file), "crontab -u %s -r",
 			    pwd->pw_name);

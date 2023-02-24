@@ -1,27 +1,7 @@
-/*
- * Copyright (c) 1999-2016 Apple Inc. All rights reserved.
- *
- * @APPLE_LICENSE_HEADER_START@
- *
- * This file contains Original Code and/or Modifications of Original Code
- * as defined in and that are subject to the Apple Public Source License
- * Version 2.0 (the 'License'). You may not use this file except in
- * compliance with the License. Please obtain a copy of the License at
- * http://www.opensource.apple.com/apsl/ and read it before using this
- * file.
- *
- * The Original Code and all software distributed under the License are
- * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
- * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
- * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
- * Please see the License for the specific language governing rights and
- * limitations under the License.
- *
- * @APPLE_LICENSE_HEADER_END@
- */
 /*-
- * Copyright (c) 1990, 1993, 1994
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
+ * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -60,36 +40,25 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)util.c	8.4 (Berkeley) 4/2/94";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/chpass/util.c,v 1.13 2004/01/18 21:46:39 charnier Exp $");
-#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 #include "chpass.h"
-#include <err.h>
-#include <paths.h>
-#include <sys/stat.h>
-#include <CoreFoundation/CoreFoundation.h>
-#if OPEN_DIRECTORY
-#include "open_directory.h"
-
-char* tempname;
-#endif /* OPEN_DIRECTORY */
 
 static const char *months[] =
 	{ "January", "February", "March", "April", "May", "June",
@@ -105,7 +74,7 @@ ttoa(time_t tval)
 	if (tval) {
 		tp = localtime(&tval);
 		(void)sprintf(tbuf, "%s %d, %d", months[tp->tm_mon],
-		    tp->tm_mday, tp->tm_year + TM_YEAR_BASE);
+		    tp->tm_mday, tp->tm_year + 1900);
 	}
 	else
 		*tbuf = '\0';
@@ -139,15 +108,15 @@ atot(char *p, time_t *store)
 			if (!*mp)
 				goto bad;
 			if (!strncasecmp(*mp, t, 3)) {
-				month = (int)(mp - months + 1);
+				month = mp - months + 1;
 				break;
 			}
 		}
 	}
-	if (!(t = strtok((char *)NULL, " \t,")) || !isdigit(*t))
+	if (!(t = strtok(NULL, " \t,")) || !isdigit(*t))
 		goto bad;
 	day = atoi(t);
-	if (!(t = strtok((char *)NULL, " \t,")) || !isdigit(*t))
+	if (!(t = strtok(NULL, " \t,")) || !isdigit(*t))
 		goto bad;
 	year = atoi(t);
 	if (day < 1 || day > 31 || month < 1 || month > 12)
@@ -156,10 +125,10 @@ atot(char *p, time_t *store)
 	if (year < 69)
 		year += 2000;
 	else if (year < 100)
-		year += TM_YEAR_BASE;
-	if (year < EPOCH_YEAR)
+		year += 1900;
+	if (year < 1969)
 bad:		return (1);
-	lt->tm_year = year - TM_YEAR_BASE;
+	lt->tm_year = year - 1900;
 	lt->tm_mon = month - 1;
 	lt->tm_mday = day;
 	lt->tm_hour = 0;
@@ -168,6 +137,17 @@ bad:		return (1);
 	lt->tm_isdst = -1;
 	if ((tval = mktime(lt)) < 0)
 		return (1);
+#ifndef __i386__
+	/*
+	 * PR227589: The pwd.db and spwd.db files store the change and expire
+	 * dates as unsigned 32-bit ints which overflow in 2106, so larger
+	 * values must be rejected until the introduction of a v5 password
+	 * database.  i386 has 32-bit time_t and so dates beyond y2038 are
+	 * already rejected by mktime above.
+	 */
+	if (tval > UINT32_MAX)
+		return (1);
+#endif
 	*store = tval;
 	return (0);
 }
@@ -175,11 +155,7 @@ bad:		return (1);
 int
 ok_shell(char *name)
 {
-#ifdef __APPLE__
-	char *sh;
-#else
 	char *p, *sh;
-#endif
 
 	setusershell();
 	while ((sh = getusershell())) {
@@ -187,13 +163,11 @@ ok_shell(char *name)
 			endusershell();
 			return (1);
 		}
-#ifndef __APPLE__
 		/* allow just shell name, but use "real" path */
 		if ((p = strrchr(sh, '/')) && strcmp(name, p + 1) == 0) {
 			endusershell();
 			return (1);
 		}
-#endif
 	}
 	endusershell();
 	return (0);
@@ -220,113 +194,3 @@ dup_shell(char *name)
 	endusershell();
 	return (NULL);
 }
-
-int
-cfprintf(FILE* file, const char* format, ...)
-{
-	char* cstr;
-	int result = 0;
-	va_list args;
-	va_start(args, format);
-	CFStringRef formatStr = CFStringCreateWithCStringNoCopy(NULL, format, kCFStringEncodingUTF8, kCFAllocatorNull);
-	if (formatStr) {
-		CFStringRef str = CFStringCreateWithFormatAndArguments(NULL, NULL, formatStr, args);
-		if (str) {
-			size_t size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8) + 1;
-			va_end(args);
-			cstr = malloc(size);
-			if (cstr && CFStringGetCString(str, cstr, size, kCFStringEncodingUTF8)) {
-				result = fprintf(file, "%s", cstr);
-				free(cstr);
-			}
-			CFRelease(str);
-		}
-		CFRelease(formatStr);
-	}
-	return result;
-}
-
-/*
- * Edit the temp file.  Return -1 on error, >0 if the file was modified, 0
- * if it was not.
- */
-int
-editfile(const char* tfn)
-{
-	struct sigaction sa, sa_int, sa_quit;
-	sigset_t oldsigset, sigset;
-	struct stat st1, st2;
-	const char *p, *editor;
-	int pstat;
-	pid_t editpid;
-
-	if ((editor = getenv("EDITOR")) == NULL)
-		editor = _PATH_VI;
-	if ((p = strrchr(editor, '/')))
-		++p;
-	else
-		p = editor;
-
-	if (stat(tfn, &st1) == -1)
-		return (-1);
-	sa.sa_handler = SIG_IGN;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	sigaction(SIGINT, &sa, &sa_int);
-	sigaction(SIGQUIT, &sa, &sa_quit);
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &sigset, &oldsigset);
-	switch ((editpid = fork())) {
-	case -1:
-		return (-1);
-	case 0:
-		sigaction(SIGINT, &sa_int, NULL);
-		sigaction(SIGQUIT, &sa_quit, NULL);
-		sigprocmask(SIG_SETMASK, &oldsigset, NULL);
-		errno = 0;
-		if (!master_mode) {
-			(void)setgid(getgid());
-			(void)setuid(getuid());
-		}
-		execlp(editor, p, tfn, (char *)NULL);
-		_exit(errno);
-	default:
-		/* parent */
-		break;
-	}
-	for (;;) {
-		if (waitpid(editpid, &pstat, WUNTRACED) == -1) {
-			if (errno == EINTR)
-				continue;
-			unlink(tfn);
-			editpid = -1;
-			break;
-		} else if (WIFSTOPPED(pstat)) {
-			raise(WSTOPSIG(pstat));
-		} else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0) {
-			editpid = -1;
-			break;
-		} else {
-			unlink(tfn);
-			editpid = -1;
-			break;
-		}
-	}
-	sigaction(SIGINT, &sa_int, NULL);
-	sigaction(SIGQUIT, &sa_quit, NULL);
-	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
-	if (stat(tfn, &st2) == -1)
-		return (-1);
-	return (st1.st_mtime != st2.st_mtime);
-}
-
-#if 0
-static void
-pw_error(char *name, int err, int eval)
-{
-	if (err)
-		warn("%s", name);
-	exit(eval);
-}
-#endif

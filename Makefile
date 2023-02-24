@@ -33,8 +33,7 @@ out/chkgrp:
 chpass: out/chpass
 
 out/chpass: $(CHPASS_SRCS:%.c=chpass/%.o) $(LIBUTIL_PART:%.c=libutil/%.o)
-	$(CC) -o out/chpass $^ \
-	  -framework CoreFoundation
+	$(CC) -o out/chpass $^
 
 %.o: %.c
 	$(CC) -Ilibutil -Iinclude -D_PATH_ETC="\"$(SYSCONFDIR)\"" -Dst_mtim=st_mtimespec -c $< -o $@
@@ -55,7 +54,7 @@ install: all
 	# install vigr
 	install -m 0755 vigr/vigr.sh $(DESTDIR)/$(PREFIX)/sbin/vigr
 	# install chpass
-	install -m 0755 out/chpass $(DESTDIR)/$(PREFIX)/bin/chpass
+	install -m 4755 out/chpass $(DESTDIR)/$(PREFIX)/bin/chpass
 	ln -s chpass $(DESTDIR)/$(PREFIX)/bin/chfn
 	ln -s chpass $(DESTDIR)/$(PREFIX)/bin/chsh
 	# install doc
