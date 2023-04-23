@@ -147,11 +147,11 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 
 	if (!(p = strsep(&bp, ":")))			/* gid */
 		goto fmt;
+	if (p[0]) {
 #ifdef __FreeBSD__
-	if (p[0])
 		pw->pw_fields |= _PWF_GID;
 #endif
-	else {
+	} else {
 		if (pw->pw_name[0] != '+' && pw->pw_name[0] != '-') {
 			if (flags & _PWSCAN_WARN)
 				warnx("no gid for user %s", pw->pw_name);
