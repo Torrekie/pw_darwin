@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 1998 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,8 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <err.h>
 #include <errno.h>
 #include <ctype.h>
@@ -55,10 +53,11 @@ int
 main(int argc, char *argv[])
 {
 	FILE *gf;
-#ifdef __FreeBSD__
-	unsigned
-#endif
+#ifdef __APPLE__
 	long gid;
+#else
+	unsigned long gid;
+#endif /* __APPLE__ */
 	unsigned int i;
 	size_t len;
 	int opt, quiet;
@@ -169,17 +168,31 @@ main(int argc, char *argv[])
 		}
 
 		/* check that the GID is numeric */
-		char *j;
-		errno = 0;
-		gid = strtol(f[2], &j, 10);
-		if (*j != '\0') {
+#ifdef __APPLE__
+		cp = f[2];
+		if (*cp == '-')
+			cp++;
+		if (*cp == '\0' || strspn(cp, "0123456789") != strlen(cp)) {
+#else
+		if (strspn(f[2], "0123456789") != strlen(f[2])) {
+#endif /* __APPLE__ */
 			warnx("%s: line %d: group id is not numeric", gfn, n);
 			e = 1;
 		}
 
 		/* check the range of the group id */
+		errno = 0;
+#ifdef __APPLE__
+		gid = strtol(f[2], NULL, 10);
+#else
+		gid = strtoul(f[2], NULL, 10);
+#endif /* __APPLE__ */
 		if (errno != 0) {
+#ifdef __APPLE__
+			warnx("%s: line %d: strtol failed", gfn, n);
+#else
 			warnx("%s: line %d: strtoul failed", gfn, n);
+#endif /* __APPLE__ */
 		} else if (gid > GID_MAX) {
 			warnx("%s: line %d: group id is too large (%ju > %ju)",
 			    gfn, n, (uintmax_t)gid, (uintmax_t)GID_MAX);
