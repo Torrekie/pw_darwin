@@ -1,4 +1,4 @@
-.PHONY: pw chkgrp create-out-dir clean install
+.PHONY: pw chkgrp logins create-out-dir clean install
 
 include pw/sources.mk
 
@@ -13,7 +13,7 @@ CPPFLAGS += -Iinclude -I$(LIBUTIL_INCLUDE) -D_PATH_ETC="\"$(SYSCONFDIR)\"" -Dst_
 LDFLAGS += -L$(LIBUTIL_LIBDIR) -Wl,-rpath,$(LIBUTIL_LIBDIR)
 PW_LIBS ?= -lutil-fbsd -lcrypt-fbsd
 
-all: pw chkgrp create-out-dir
+all: pw chkgrp logins create-out-dir
 
 ifeq ($(shell if [ -d "out" ]; then echo exists; fi),exists)
     has_dir := 1
@@ -36,6 +36,11 @@ chkgrp: out/chkgrp
 out/chkgrp:
 	$(CC) -o out/chkgrp chkgrp/chkgrp.c
 
+logins: out/logins
+
+out/logins:
+	$(CC) -o out/logins logins/logins.c
+
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -52,6 +57,8 @@ install: all
 	install -m 0755 adduser/rmuser.sh $(DESTDIR)/$(PREFIX)/sbin/rmuser
 	# install chkgrp
 	install -m 0755 out/chkgrp $(DESTDIR)/$(PREFIX)/sbin/chkgrp
+	# install logins
+	install -m 0755 out/logins $(DESTDIR)/$(PREFIX)/bin/logins
 	# install vigr
 	install -m 0755 vigr/vigr.sh $(DESTDIR)/$(PREFIX)/sbin/vigr
 	# install doc
