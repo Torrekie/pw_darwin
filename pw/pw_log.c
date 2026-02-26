@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -26,17 +26,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
-#include <time.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 
 #include "pw.h"
 

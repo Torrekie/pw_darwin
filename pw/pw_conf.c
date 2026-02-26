@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -26,11 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <err.h>
 #include <fcntl.h>
 #include <string.h>
@@ -38,16 +33,7 @@ static const char rcsid[] =
 
 #include "pw.h"
 
-extern long long pw_strtonum(const char *__numstr, long long __minval, long long __maxval, const char **__errstrp);
-
-#ifdef __APPLE__
-#define SKEL_DIR "/System/Library/User Template"
-// it should be /Users but we don't actually have its functionality on Embedded
-#define HOME_DIR "/var"
-#else
-#define SKEL_DIR "/usr/share/skel"
-#define HOME_DIR "/home"
-#endif
+#include "pathnames.h"
 
 #define debugging 0
 
@@ -101,12 +87,12 @@ static struct userconf config =
 	0,			/* Reuse uids? */
 	0,			/* Reuse gids? */
 	NULL,			/* NIS version of the passwd file */
-	SKEL_DIR,		/* Where to obtain skeleton files */
+	_PATH_SKEL,		/* Where to obtain skeleton files */
 	NULL,			/* Mail to send to new accounts */
 	"/var/log/userlog",	/* Where to log changes */
-	HOME_DIR,		/* Where to create home directory */
+	_PATH_HOME,		/* Where to create home directory */
 	_DEF_DIRMODE,		/* Home directory perms, modified by umask */
-	"/bin",			/* Where shells are located */
+	_PATH_BIN,		/* Where shells are located */
 	system_shells,		/* List of shells (first is default) */
 	bourne_shell,		/* Default shell */
 	NULL,			/* Default group name */
@@ -311,7 +297,7 @@ read_userconfig(char const * file)
 				break;
 			case _UC_HOMEROOT:
 				config.home = (q == NULL || !boolean_val(q, 1))
-					? HOME_DIR : newstr(q);
+					? _PATH_HOME : newstr(q);
 				break;
 			case _UC_HOMEMODE:
 				modeset = setmode(q);
@@ -321,7 +307,7 @@ read_userconfig(char const * file)
 				break;
 			case _UC_SHELLPATH:
 				config.shelldir = (q == NULL || !boolean_val(q, 1))
-					? "/bin" : newstr(q);
+					? _PATH_BIN : newstr(q);
 				break;
 			case _UC_SHELLS:
 				for (i = 0; i < _UC_MAXSHELLS && q != NULL; i++, q = strtok(NULL, toks))
@@ -388,7 +374,7 @@ read_userconfig(char const * file)
 				break;
 			case _UC_EXPIRE:
 				if ((q = unquote(q)) != NULL) {
-					config.expire_days = pw_strtonum(q, 0,
+					config.expire_days = strtonum(q, 0,
 					    INT_MAX, &errstr);
 					if (errstr)
 						warnx("Invalid expire days:"
@@ -397,7 +383,7 @@ read_userconfig(char const * file)
 				break;
 			case _UC_PASSWORD:
 				if ((q = unquote(q)) != NULL) {
-					config.password_days = pw_strtonum(q, 0,
+					config.password_days = strtonum(q, 0,
 					    INT_MAX, &errstr);
 					if (errstr)
 						warnx("Invalid password days:"
@@ -517,19 +503,19 @@ write_userconfig(struct userconf *cnf, const char *file)
 			    buffp);
 			break;
 		case _UC_MINUID:
-			fprintf(buffp, "%ju", (uintmax_t)cnf->min_uid);
+			fprintf(buffp, "%" PW_UID_PRI, PW_UID_ARG(cnf->min_uid));
 			quote = 0;
 			break;
 		case _UC_MAXUID:
-			fprintf(buffp, "%ju", (uintmax_t)cnf->max_uid);
+			fprintf(buffp, "%" PW_UID_PRI, PW_UID_ARG(cnf->max_uid));
 			quote = 0;
 			break;
 		case _UC_MINGID:
-			fprintf(buffp, "%ju", (uintmax_t)cnf->min_gid);
+			fprintf(buffp, "%" PW_GID_PRI, PW_GID_ARG(cnf->min_gid));
 			quote = 0;
 			break;
 		case _UC_MAXGID:
-			fprintf(buffp, "%ju", (uintmax_t)cnf->max_gid);
+			fprintf(buffp, "%" PW_GID_PRI, PW_GID_ARG(cnf->max_gid));
 			quote = 0;
 			break;
 		case _UC_EXPIRE:

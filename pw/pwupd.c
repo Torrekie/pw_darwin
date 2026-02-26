@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -26,11 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <sys/wait.h>
 
 #include <err.h>
@@ -54,6 +49,40 @@ getpwpath(char const * file)
 	return (pathbuf);
 }
 
+static struct passwd *
+pw_lookup_master(const char *name)
+{
+	FILE *fp;
+	char *line = NULL;
+	size_t linecap = 0;
+	ssize_t linelen;
+	struct passwd *pw = NULL;
+
+	if (name == NULL)
+		return (NULL);
+	fp = fopen(getpwpath(_MASTERPASSWD), "r");
+	if (fp == NULL)
+		return (NULL);
+
+	while ((linelen = getline(&line, &linecap, fp)) > 0) {
+		if (line[0] == '\n' || line[0] == '#')
+			continue;
+		if (line[linelen - 1] == '\n')
+			line[linelen - 1] = '\0';
+		pw = pw_scan(line, PWSCAN_MASTER);
+		if (pw == NULL)
+			continue;
+		if (strcmp(pw->pw_name, name) == 0)
+			break;
+		free(pw);
+		pw = NULL;
+	}
+
+	free(line);
+	fclose(fp);
+	return (pw);
+}
+
 static int
 pwdb_check(void)
 {
@@ -62,11 +91,12 @@ pwdb_check(void)
 	char           *args[10];
 
 	args[i++] = _PATH_PWD_MKDB;
-#ifdef __FreeBSD__
-	args[i++] = "-C";
-#else
+#ifdef __APPLE__
 	args[i++] = "-c";
+#else
+	args[i++] = "-C";
 #endif
+
 	if (strcmp(conf.etcpath, _PATH_PWD) != 0) {
 		args[i++] = "-d";
 		args[i++] = conf.etcpath;
@@ -102,7 +132,7 @@ pw_update(struct passwd * pwd, char const * user)
 		pw = pw_dup(pwd);
 
 	if (user != NULL)
-		old_pw = GETPWNAM(user);
+		old_pw = pw_lookup_master(user);
 
 	if (pw_init(conf.etcpath, NULL))
 		err(1, "pw_init()");
@@ -129,6 +159,7 @@ pw_update(struct passwd * pwd, char const * user)
 		pw_fini();
 		err(1, "pw_mkdb()");
 	}
+	free(old_pw);
 	free(pw);
 	pw_fini();
 

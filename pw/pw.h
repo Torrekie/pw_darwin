@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -24,8 +24,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/stat.h>
@@ -33,19 +31,37 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "pwupd.h"
 
+#ifdef __APPLE__
+#define PW_UID_PRI "jd"
+#define PW_GID_PRI "jd"
+#define PW_UID_ARG(_uid) ((intmax_t)(id_t)(_uid))
+#define PW_GID_ARG(_gid) ((intmax_t)(id_t)(_gid))
+#elif defined(__FreeBSD__)
+#define PW_UID_PRI "ju"
+#define PW_GID_PRI "ju"
+#define PW_UID_ARG(_uid) ((uintmax_t)(_uid))
+#define PW_GID_ARG(_gid) ((uintmax_t)(_gid))
+#else
+#define PW_UID_PRI "ju"
+#define PW_GID_PRI "ju"
+#define PW_UID_ARG(_uid) ((uintmax_t)(_uid))
+#define PW_GID_ARG(_gid) ((uintmax_t)(_gid))
+#endif
+
 enum _mode
 {
-        M_ADD,
-        M_DELETE,
-        M_UPDATE,
-        M_PRINT,
+	M_ADD,
+	M_DELETE,
+	M_MODIFY,
+	M_SHOW,
 	M_NEXT,
 	M_LOCK,
 	M_UNLOCK,
-        M_NUM
+	M_NUM
 };
 
 enum _passmode
@@ -58,19 +74,24 @@ enum _passmode
 
 enum _which
 {
-        W_USER,
-        W_GROUP,
-        W_NUM
+	W_USER,
+	W_GROUP,
+	W_NUM
 };
 
-#define	_DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
-#define	_PW_CONF	"pw.conf"
+#define _DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
+#define _PW_CONF	"pw.conf"
 #define _UC_MAXLINE	1024
 #define _UC_MAXSHELLS	32
 
 struct userconf *get_userconfig(const char *cfg);
 struct userconf *read_userconfig(char const * file);
 int write_userconfig(struct userconf *cnf, char const * file);
+
+void metalog_emit(const char *path, mode_t mode, uid_t uid, gid_t gid,
+    int flags);
+void metalog_emit_symlink(const char *path, const char *target, mode_t mode,
+    uid_t uid, gid_t gid);
 
 int pw_group_add(int argc, char **argv, char *name);
 int pw_group_del(int argc, char **argv, char *name);
@@ -90,6 +111,9 @@ int pw_user_unlock(int argc, char **argv, char *name);
 int pw_groupnext(struct userconf *cnf, bool quiet);
 char *pw_checkname(char *name, int gecos);
 uintmax_t pw_checkid(char *nptr, uintmax_t maxval);
+intmax_t pw_checkuid(char *nptr);
+intmax_t pw_checkgid(char *nptr);
+bool pw_id_numeric(const char *nptr);
 int pw_checkfd(char *nptr);
 
 int addnispwent(const char *path, struct passwd *pwd);
@@ -114,3 +138,13 @@ extern const char *Which[];
 
 uintmax_t strtounum(const char * __restrict, uintmax_t, uintmax_t,
     const char ** __restrict);
+
+bool grp_has_member(struct group *grp, const char *name);
+
+#if defined(__APPLE__)
+int chflagsat(int fd, const char *path, unsigned long flags, int atflag);
+#endif
+
+extern bool use_login_cap;
+
+void usage(void);

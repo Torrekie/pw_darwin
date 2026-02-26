@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -26,19 +26,21 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <err.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <sys/types.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <stdbool.h>
+#if __has_include(<login_cap.h>)
+#include <login_cap.h>
+#define LOGIN_CAP
+#endif
 
 #include "pw.h"
+#include "pathnames.h"
 
 const char     *Modes[] = {
   "add", "del", "mod", "show", "next",
@@ -106,13 +108,27 @@ static int (*cmdfunc[W_NUM][M_NUM])(int argc, char **argv, char *_name) = {
 
 struct pwconf conf;
 
+static int	mode = -1;
+static int	which = -1;
+
 static int	getindex(const char *words[], const char *word);
 static void	cmdhelp(int mode, int which);
+
+bool		use_login_cap = false;
+
+#ifdef LOGIN_CAP
+static bool
+login_cap_available(void)
+{
+	return (access(_PATH_LOGIN_CONF ".db", F_OK) == 0 ||
+	    access(_PATH_LOGIN_CONF, F_OK) == 0);
+}
+#endif
 
 int
 main(int argc, char *argv[])
 {
-	int		mode = -1, which = -1, tmp;
+	int		tmp;
 	struct stat	st;
 	char		arg, *arg1;
 	bool		relocated, nis;
@@ -120,7 +136,7 @@ main(int argc, char *argv[])
 	arg1 = NULL;
 	relocated = nis = false;
 	memset(&conf, 0, sizeof(conf));
-	strlcpy(conf.rootdir, "/", sizeof(conf.rootdir));
+	strlcpy(conf.rootdir, _PATH_ROOT, sizeof(conf.rootdir));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 	conf.fd = -1;
 	conf.checkduplicate = true;
@@ -134,7 +150,11 @@ main(int argc, char *argv[])
 	while (argc > 1) {
 		if (*argv[1] == '-') {
 			/*
-			 * Special case, allow pw -V<dir> <operation> [args] for scripts etc.
+			 * Special case, allow pw -V<dir> <operation> [args] for
+			 * scripts etc.
+			 *
+			 * The -M option before the keyword is handled
+			 * differently from -M after a keyword.
 			 */
 			arg = argv[1][1];
 			if (arg == 'V' || arg == 'R') {
@@ -145,12 +165,13 @@ main(int argc, char *argv[])
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
 					if (stat(argv[2], &st) != 0)
-						errx(EX_OSFILE, \
+						errx(EX_OSFILE,
 						    "no such directory `%s'",
 						    argv[2]);
 					if (!S_ISDIR(st.st_mode))
-						errx(EX_OSFILE, "`%s' not a "
-						    "directory", argv[2]);
+						errx(EX_OSFILE,
+						    "`%s' not a directory",
+						    argv[2]);
 					optarg = argv[2];
 					++argv;
 					--argc;
@@ -164,10 +185,27 @@ main(int argc, char *argv[])
 				snprintf(conf.etcpath, sizeof(conf.etcpath),
 				    "%s%s", optarg, arg == 'R' ?
 				    _PATH_PWD : "");
+				conf.altroot = true;
+			} else if (mode == -1 && which == -1 && arg == 'M') {
+				int fd;
+
+				optarg = &argv[1][2];
+				if (*optarg == '\0') {
+					optarg = argv[2];
+					++argv;
+					--argc;
+				}
+				fd = open(optarg,
+				    O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC,
+				    0644);
+				if (fd == -1)
+					errx(EX_OSERR,
+					    "Cannot open metalog `%s'",
+					    optarg);
+				conf.metalog = fdopen(fd, "ae");
 			} else
 				break;
-		}
-		else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
+		} else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
 			mode = tmp;
 		else if (which == -1 && (tmp = getindex(Which, argv[1])) != -1)
 			which = tmp;
@@ -179,12 +217,16 @@ main(int argc, char *argv[])
 		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
 			cmdhelp(mode, which);
 		else if (which != -1 && mode != -1)
-				arg1 = argv[1];
+			arg1 = argv[1];
 		else
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
 		++argv;
 		--argc;
 	}
+
+#ifdef LOGIN_CAP
+	use_login_cap = login_cap_available();
+#endif
 
 	/*
 	 * Bail out unless the user is specific!
@@ -195,6 +237,10 @@ main(int argc, char *argv[])
 	conf.rootfd = open(conf.rootdir, O_DIRECTORY|O_CLOEXEC);
 	if (conf.rootfd == -1)
 		errx(EXIT_FAILURE, "Unable to open '%s'", conf.rootdir);
+
+	if (conf.metalog != NULL && (which != W_USER || mode != M_ADD))
+		errx(EXIT_FAILURE,
+	    "metalog can only be specified with 'useradd'");
 
 	return (cmdfunc[which][mode](argc, argv, arg1));
 }
@@ -234,10 +280,11 @@ cmdhelp(int mode, int which)
 		static const char *help[W_NUM][M_NUM] =
 		{
 			{
-				"usage: pw useradd [name] [switches]\n"
+				"usage: pw [-M metalog] useradd [name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
+				"\t-M metalog     mtree file, must precede 'useradd'\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
 				"\t-n name        login name\n"
@@ -258,8 +305,6 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
-				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootdir     alternate root directory\n"
 				"\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
 				"\t-e period      default expiry period\n"
@@ -380,5 +425,11 @@ cmdhelp(int mode, int which)
 
 		fprintf(stderr, "%s", help[which][mode]);
 	}
-	exit(EXIT_FAILURE);
+	exit(EX_USAGE);
+}
+
+void
+usage(void)
+{
+	cmdhelp(mode, which);
 }

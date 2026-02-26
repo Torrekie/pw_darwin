@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -25,11 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <err.h>
 #include <grp.h>
@@ -61,7 +56,7 @@ gr_update(struct group * grp, char const * group)
 		gr = gr_dup(grp);
 
 	if (group != NULL)
-		old_gr = GETGRNAM(group);
+		old_gr = vgetgrnam(group);
 
 	if (gr_init(conf.etcpath, NULL))
 		err(1, "gr_init()");
@@ -85,6 +80,7 @@ gr_update(struct group * grp, char const * group)
 		gr_fini();
 		err(1, "gr_mkdb()");
 	}
+	free(old_gr);
 	free(gr);
 	gr_fini();
 	return 0;

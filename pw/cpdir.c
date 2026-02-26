@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -26,11 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -41,46 +36,53 @@ static const char rcsid[] =
 #include "pw.h"
 
 void
-copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
+copymkdir(int rootfd, char const *dir, int skelfd, mode_t mode, uid_t uid,
     gid_t gid, int flags)
 {
-	char		*p, lnk[MAXPATHLEN], copybuf[4096];
-	int		len, homefd, srcfd, destfd;
+	char		*p, lnk[MAXPATHLEN];
+	int		len, srcfd, destfd;
+	char		copybuf[16 * 1024];
 	ssize_t		sz;
 	struct stat     st;
 	struct dirent  *e;
 	DIR		*d;
+	mode_t		pumask;
 
 	if (*dir == '/')
 		dir++;
 
-	if (mkdirat(rootfd, dir, mode) != 0 && errno != EEXIST) {
-		warn("mkdir(%s)", dir);
-		return;
-	}
-	fchownat(rootfd, dir, uid, gid, AT_SYMLINK_NOFOLLOW);
-	if (flags > 0) {
-#if __FreeBSD__
-		chflagsat(rootfd, dir, flags, AT_SYMLINK_NOFOLLOW);
-#else
-		int fd = openat(rootfd, dir, O_NOFOLLOW);
-		if (fd > 0) {
-			fchflags(fd, flags);
-			close(fd);
+	pumask = umask(0);
+	umask(pumask);
+
+	if (mkdirat(rootfd, dir, mode) != 0) {
+
+		if (errno != EEXIST) {
+			warn("mkdir(%s)", dir);
+			return;
 		}
-#endif
+
+		if (fchmodat(rootfd, dir, mode & ~pumask,
+		    AT_SYMLINK_NOFOLLOW) == -1)
+			warn("chmod(%s)", dir);
 	}
+	if (fchownat(rootfd, dir, uid, gid, AT_SYMLINK_NOFOLLOW) == -1)
+		warn("chown(%s)", dir);
+	if (flags > 0 && chflagsat(rootfd, dir, flags,
+	    AT_SYMLINK_NOFOLLOW) == -1)
+		warn("chflags(%s)", dir);
+	metalog_emit(dir, (mode | S_IFDIR) & ~pumask, uid, gid, flags);
+
 	if (skelfd == -1)
 		return;
 
-	homefd = openat(rootfd, dir, O_DIRECTORY);
 	if ((d = fdopendir(skelfd)) == NULL) {
 		close(skelfd);
-		close(homefd);
 		return;
 	}
 
 	while ((e = readdir(d)) != NULL) {
+		char path[MAXPATHLEN];
+
 		if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
 			continue;
 
@@ -90,19 +92,32 @@ copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
 
 		if (strncmp(p, "dot.", 4) == 0)	/* Conversion */
 			p += 3;
+		(void)snprintf(path, sizeof(path), "%s/%s", dir, p);
 
 		if (S_ISDIR(st.st_mode)) {
-			copymkdir(homefd, p, openat(skelfd, e->d_name, O_DIRECTORY),
-			    st.st_mode & _DEF_DIRMODE, uid, gid, st.st_flags);
+			int fd;
+
+			fd = openat(skelfd, e->d_name, O_DIRECTORY);
+			if (fd == -1) {
+				warn("openat(%s)", e->d_name);
+				continue;
+			}
+			copymkdir(rootfd, path, fd, st.st_mode & _DEF_DIRMODE,
+			    uid, gid, st.st_flags);
 			continue;
 		}
 
 		if (S_ISLNK(st.st_mode) &&
-		    (len = readlinkat(skelfd, e->d_name, lnk, sizeof(lnk) -1))
+		    (len = readlinkat(skelfd, e->d_name, lnk, sizeof(lnk) - 1))
 		    != -1) {
 			lnk[len] = '\0';
-			symlinkat(lnk, homefd, p);
-			fchownat(homefd, p, uid, gid, AT_SYMLINK_NOFOLLOW);
+			if (symlinkat(lnk, rootfd, path) != 0)
+				warn("symlink(%s)", path);
+			else if (fchownat(rootfd, path, uid, gid,
+			    AT_SYMLINK_NOFOLLOW) != 0)
+				warn("chown(%s)", path);
+			metalog_emit_symlink(path, lnk, st.st_mode & ~pumask,
+			    uid, gid);
 			continue;
 		}
 
@@ -111,22 +126,59 @@ copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
 
 		if ((srcfd = openat(skelfd, e->d_name, O_RDONLY)) == -1)
 			continue;
-		destfd = openat(homefd, p, O_RDWR | O_CREAT | O_EXCL,
+		destfd = openat(rootfd, path, O_RDWR | O_CREAT | O_EXCL,
 		    st.st_mode);
 		if (destfd == -1) {
 			close(srcfd);
 			continue;
 		}
 
-		while ((sz = read(srcfd, copybuf, sizeof(copybuf))) > 0)
-			write(destfd, copybuf, sz);
+#ifndef __APPLE__
+		do {
+			sz = copy_file_range(srcfd, NULL, destfd, NULL,
+			    SSIZE_MAX, 0);
+		} while (sz > 0);
+		if (sz < 0)
+			warn("copy_file_range");
+#else
+		for (;;) {
+			ssize_t off;
+
+			sz = read(srcfd, copybuf, sizeof(copybuf));
+			if (sz == 0)
+				break;
+			if (sz < 0) {
+				if (errno == EINTR)
+					continue;
+				warn("read(%s)", e->d_name);
+				break;
+			}
+			for (off = 0; off < sz;) {
+				ssize_t w = write(destfd, copybuf + off,
+				    (size_t)(sz - off));
+				if (w < 0) {
+					if (errno == EINTR)
+						continue;
+					warn("write(%s)", path);
+					sz = -1;
+					break;
+				}
+				off += w;
+			}
+			if (sz < 0)
+				break;
+		}
+#endif
 
 		close(srcfd);
 		/*
 		 * Propagate special filesystem flags
 		 */
-		fchown(destfd, uid, gid);
-		fchflags(destfd, st.st_flags);
+		if (fchown(destfd, uid, gid) != 0)
+			warn("chown(%s)", p);
+		if (fchflags(destfd, st.st_flags) != 0)
+			warn("chflags(%s)", p);
+		metalog_emit(path, st.st_mode & ~pumask, uid, gid, st.st_flags);
 		close(destfd);
 	}
 	closedir(d);

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -25,11 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <ctype.h>
 #include <err.h>
@@ -109,7 +104,7 @@ pw_groupnext(struct userconf *cnf, bool quiet)
 
 	if (quiet)
 		return (next);
-	printf("%ju\n", (uintmax_t)next);
+	printf("%" PW_GID_PRI "\n", PW_GID_ARG(next));
 
 	return (EXIT_SUCCESS);
 }
@@ -126,7 +121,7 @@ getgroup(char *name, intmax_t id, bool fatal)
 		if (!fatal)
 			return (NULL);
 		if (name == NULL)
-			errx(EX_DATAERR, "unknown gid `%ju'", id);
+			errx(EX_DATAERR, "unknown gid `%jd'", id);
 		errx(EX_DATAERR, "unknown group `%s'", name);
 	}
 	return (grp);
@@ -141,8 +136,8 @@ lookup_pwent(const char *user)
 	struct passwd *pwd;
 
 	if ((pwd = GETPWNAM(user)) == NULL &&
-	    (!isdigit((unsigned char)*user) ||
-	    (pwd = getpwuid((uid_t) atoi(user))) == NULL))
+	    (!pw_id_numeric(user) ||
+	    (pwd = getpwuid((uid_t)pw_checkuid((char *)user))) == NULL))
 		errx(EX_NOUSER, "user `%s' does not exist", user);
 
 	return (pwd);
@@ -188,8 +183,8 @@ gr_gidpolicy(struct userconf * cnf, intmax_t id)
 		gid = (gid_t) id;
 
 		if ((grp = GETGRGID(gid)) != NULL && conf.checkduplicate)
-			errx(EX_DATAERR, "gid `%ju' has already been allocated",
-			    (uintmax_t)grp->gr_gid);
+			errx(EX_DATAERR, "gid `%" PW_GID_PRI "' has already been allocated",
+			    PW_GID_ARG(grp->gr_gid));
 		return (gid);
 	}
 
@@ -244,9 +239,9 @@ print_group(struct group * grp, bool pretty)
 	int i;
 
 	if (pretty) {
-		printf("Group Name: %-15s   #%lu\n"
+		printf("Group Name: %-15s   #%" PW_GID_PRI "\n"
 		       "   Members: ",
-		       grp->gr_name, (long) grp->gr_gid);
+		       grp->gr_name, PW_GID_ARG(grp->gr_gid));
 		if (grp->gr_mem != NULL) {
 			for (i = 0; grp->gr_mem[i]; i++)
 				printf("%s%s", i ? "," : "", grp->gr_mem[i]);
@@ -278,9 +273,13 @@ pw_group_next(int argc, char **argv, char *arg1 __unused)
 			quiet = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -307,8 +306,8 @@ pw_group_show(int argc, char **argv, char *arg1)
 	};
 
 	if (arg1 != NULL) {
-		if (arg1[strspn(arg1, "0123456789")] == '\0')
-			id = pw_checkid(arg1, GID_MAX);
+		if (pw_id_numeric(arg1))
+			id = pw_checkgid(arg1);
 		else
 			name = arg1;
 	}
@@ -325,7 +324,7 @@ pw_group_show(int argc, char **argv, char *arg1)
 			name = optarg;
 			break;
 		case 'g':
-			id = pw_checkid(optarg, GID_MAX);
+			id = pw_checkgid(optarg);
 			break;
 		case 'F':
 			force = true;
@@ -337,9 +336,13 @@ pw_group_show(int argc, char **argv, char *arg1)
 			all = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -372,8 +375,8 @@ pw_group_del(int argc, char **argv, char *arg1)
 	bool nis = false;
 
 	if (arg1 != NULL) {
-		if (arg1[strspn(arg1, "0123456789")] == '\0')
-			id = pw_checkid(arg1, GID_MAX);
+		if (pw_id_numeric(arg1))
+			id = pw_checkgid(arg1);
 		else
 			name = arg1;
 	}
@@ -390,15 +393,19 @@ pw_group_del(int argc, char **argv, char *arg1)
 			name = optarg;
 			break;
 		case 'g':
-			id = pw_checkid(optarg, GID_MAX);
+			id = pw_checkgid(optarg);
 			break;
 		case 'Y':
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -409,8 +416,8 @@ pw_group_del(int argc, char **argv, char *arg1)
 		err(EX_IOERR, "group '%s' not available (NIS?)", name);
 	else if (rc != 0)
 		err(EX_IOERR, "group update");
-	pw_log(cnf, M_DELETE, W_GROUP, "%s(%ju) removed", name,
-	    (uintmax_t)id);
+	pw_log(cnf, M_DELETE, W_GROUP, "%s(%" PW_GID_PRI ") removed", name,
+	    PW_GID_ARG((gid_t)id));
 
 	if (nis && nis_update() == 0)
 		pw_log(cnf, M_DELETE, W_GROUP, "NIS maps updated");
@@ -418,7 +425,7 @@ pw_group_del(int argc, char **argv, char *arg1)
 	return (EXIT_SUCCESS);
 }
 
-static bool
+bool
 grp_has_member(struct group *grp, const char *name)
 {
 	int j;
@@ -485,8 +492,8 @@ groupadd(struct userconf *cnf, char *name, gid_t id, char *members, int fd,
 			err(EX_IOERR, "group update");
 	}
 
-	pw_log(cnf, M_ADD, W_GROUP, "%s(%ju)", grp->gr_name,
-	    (uintmax_t)grp->gr_gid);
+	pw_log(cnf, M_ADD, W_GROUP, "%s(%" PW_GID_PRI ")",
+	    grp->gr_name, PW_GID_ARG(grp->gr_gid));
 
 	return (EXIT_SUCCESS);
 }
@@ -505,8 +512,8 @@ pw_group_add(int argc, char **argv, char *arg1)
 	quiet = precrypted = dryrun = pretty = nis = false;
 
 	if (arg1 != NULL) {
-		if (arg1[strspn(arg1, "0123456789")] == '\0')
-			id = pw_checkid(arg1, GID_MAX);
+		if (pw_id_numeric(arg1))
+			id = pw_checkgid(arg1);
 		else
 			name = arg1;
 	}
@@ -523,7 +530,7 @@ pw_group_add(int argc, char **argv, char *arg1)
 			name = optarg;
 			break;
 		case 'g':
-			id = pw_checkid(optarg, GID_MAX);
+			id = pw_checkgid(optarg);
 			break;
 		case 'H':
 			if (fd != -1)
@@ -556,9 +563,13 @@ pw_group_add(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -593,8 +604,8 @@ pw_group_mod(int argc, char **argv, char *arg1)
 	quiet = pretty = dryrun = nis = precrypted = false;
 
 	if (arg1 != NULL) {
-		if (arg1[strspn(arg1, "0123456789")] == '\0')
-			id = pw_checkid(arg1, GID_MAX);
+		if (pw_id_numeric(arg1))
+			id = pw_checkgid(arg1);
 		else
 			name = arg1;
 	}
@@ -611,7 +622,7 @@ pw_group_mod(int argc, char **argv, char *arg1)
 			name = optarg;
 			break;
 		case 'g':
-			id = pw_checkid(optarg, GID_MAX);
+			id = pw_checkgid(optarg);
 			break;
 		case 'd':
 			oldmembers = optarg;
@@ -650,9 +661,14 @@ pw_group_mod(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
+
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
 	cnf = get_userconfig(cfg);
@@ -702,11 +718,11 @@ pw_group_mod(int argc, char **argv, char *arg1)
 	if ((grp = GETGRNAM(name)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
-	pw_log(cnf, M_UPDATE, W_GROUP, "%s(%ju)", grp->gr_name,
-	    (uintmax_t)grp->gr_gid);
+	pw_log(cnf, M_MODIFY, W_GROUP, "%s(%" PW_GID_PRI ")",
+	    grp->gr_name, PW_GID_ARG(grp->gr_gid));
 
 	if (nis && nis_update() == 0)
-		pw_log(cnf, M_UPDATE, W_GROUP, "NIS maps updated");
+		pw_log(cnf, M_MODIFY, W_GROUP, "NIS maps updated");
 
 	return (EXIT_SUCCESS);
 }

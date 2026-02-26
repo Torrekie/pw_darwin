@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
@@ -24,14 +24,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef _PWUPD_H_
 #define _PWUPD_H_
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 
@@ -79,8 +76,10 @@ struct userconf {
 struct pwconf {
 	char		 rootdir[MAXPATHLEN];
 	char		 etcpath[MAXPATHLEN];
+	FILE		 *metalog;
 	int		 fd;
 	int		 rootfd;
+	bool		 altroot;
 	bool		 checkduplicate;
 };
 
@@ -142,7 +141,7 @@ void           vendgrent(void);
 
 void copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
     gid_t gid, int flags);
-void rm_r(int rootfd, char const * dir, uid_t uid);
+bool rm_r(int rootfd, char const * dir, uid_t uid);
 __END_DECLS
 
 #endif				/* !_PWUPD_H */
