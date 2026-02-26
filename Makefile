@@ -1,13 +1,19 @@
-.PHONY: pw chkgrp chpass create-out-dir clean install
+.PHONY: pw chkgrp create-out-dir clean install
 
 include pw/sources.mk
-include chpass/sources.mk
 
 PREFIX := /usr/local
 
 SYSCONFDIR := /etc
+LIBUTIL_PREFIX ?= /usr/local
+LIBUTIL_INCLUDE ?= $(LIBUTIL_PREFIX)/include
+LIBUTIL_LIBDIR ?= $(LIBUTIL_PREFIX)/lib
 
-all: pw chkgrp chpass create-out-dir
+CPPFLAGS += -Iinclude -I$(LIBUTIL_INCLUDE) -D_PATH_ETC="\"$(SYSCONFDIR)\"" -Dst_mtim=st_mtimespec
+LDFLAGS += -L$(LIBUTIL_LIBDIR) -Wl,-rpath,$(LIBUTIL_LIBDIR)
+PW_LIBS ?= -lutil-fbsd -lcrypt-fbsd
+
+all: pw chkgrp create-out-dir
 
 ifeq ($(shell if [ -d "out" ]; then echo exists; fi),exists)
     has_dir := 1
@@ -22,21 +28,16 @@ out:
 
 pw: out/pw
 
-out/pw: $(PW_SRCS:%.c=pw/%.o) $(LIBUTIL_PART:%.c=libutil/%.o)
-	$(CC) -o out/pw $^
+out/pw: $(PW_SRCS:%.c=pw/%.o)
+	$(CC) $(LDFLAGS) -o out/pw $^ $(PW_LIBS)
 
 chkgrp: out/chkgrp
 
 out/chkgrp:
 	$(CC) -o out/chkgrp chkgrp/chkgrp.c
 
-chpass: out/chpass
-
-out/chpass: $(CHPASS_SRCS:%.c=chpass/%.o) $(LIBUTIL_PART:%.c=libutil/%.o)
-	$(CC) -o out/chpass $^
-
 %.o: %.c
-	$(CC) -Ilibutil -Iinclude -D_PATH_ETC="\"$(SYSCONFDIR)\"" -Dst_mtim=st_mtimespec -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f */*.o out/*
@@ -53,10 +54,6 @@ install: all
 	install -m 0755 out/chkgrp $(DESTDIR)/$(PREFIX)/sbin/chkgrp
 	# install vigr
 	install -m 0755 vigr/vigr.sh $(DESTDIR)/$(PREFIX)/sbin/vigr
-	# install chpass
-	install -m 4755 out/chpass $(DESTDIR)/$(PREFIX)/bin/chpass
-	ln -s chpass $(DESTDIR)/$(PREFIX)/bin/chfn
-	ln -s chpass $(DESTDIR)/$(PREFIX)/bin/chsh
 	# install doc
 	install -d $(DESTDIR)/$(PREFIX)/share/man/man{1,5,8}
 	install -m 0644 */*.1 $(DESTDIR)/$(PREFIX)/share/man/man1/
