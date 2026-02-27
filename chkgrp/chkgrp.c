@@ -40,6 +40,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sysexits.h>
+#include <grp.h> /* _PATH_GROUP */
 
 static void __dead2
 usage(void)
@@ -80,7 +81,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc == 0)
-		gfn = "/etc/group";
+		gfn = _PATH_GROUP;
 	else if (argc == 1)
 		gfn = argv[0];
 	else

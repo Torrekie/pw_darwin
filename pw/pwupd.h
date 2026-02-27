@@ -104,8 +104,10 @@ extern struct pwconf conf;
 #define PWF_ROOTDIR 2
 
 #define PWALTDIR()	PWF._altdir
-#ifndef _PATH_PWD
+#if !defined(_PATH_PWD) && !defined(_PATH_ETC)
 #define _PATH_PWD	"/etc"
+#elif !defined(_PATH_PWD)
+#define _PATH_PWD	_PATH_ETC
 #endif
 #ifndef _GROUP
 #define _GROUP		"group"

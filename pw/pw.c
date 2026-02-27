@@ -281,7 +281,7 @@ cmdhelp(int mode, int which)
 		{
 			{
 				"usage: pw [-M metalog] useradd [name] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-M metalog     mtree file, must precede 'useradd'\n"
@@ -320,7 +320,7 @@ cmdhelp(int mode, int which)
 				"\t-s shell       default shell\n"
 				"\t-y path        set NIS passwd file path\n",
 				"usage: pw userdel [uid|name] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
@@ -328,7 +328,7 @@ cmdhelp(int mode, int which)
 				"\t-y path        set NIS passwd file path\n"
 				"\t-r             remove home & contents\n",
 				"usage: pw usermod [uid|name] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
@@ -353,7 +353,7 @@ cmdhelp(int mode, int which)
 				"\t-y path        set NIS passwd file path\n"
 				"\t-N             no update\n",
 				"usage: pw usershow [uid|name] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
@@ -362,22 +362,22 @@ cmdhelp(int mode, int which)
 				"\t-a             print all users\n"
 				"\t-7             print in v7 format\n",
 				"usage: pw usernext [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n",
 				"usage pw: lock [switches]\n"
-				"\t-V etcdir      alternate /etc locations\n"
+				"\t-V etcdir      alternate " _PATH_ETC " locations\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n",
 				"usage pw: unlock [switches]\n"
-				"\t-V etcdir      alternate /etc locations\n"
+				"\t-V etcdir      alternate " _PATH_ETC " locations\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 			},
 			{
 				"usage: pw groupadd [group|gid] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
@@ -388,13 +388,13 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: pw groupdel [group|gid] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-Y             update NIS maps\n",
 				"usage: pw groupmod [group|gid] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
@@ -408,7 +408,7 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: pw groupshow [group|gid] [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
@@ -416,7 +416,7 @@ cmdhelp(int mode, int which)
 				"\t-P             prettier format\n"
 				"\t-a             print all accounting groups\n",
 				"usage: pw groupnext [switches]\n"
-				"\t-V etcdir      alternate /etc location\n"
+				"\t-V etcdir      alternate " _PATH_ETC " location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"

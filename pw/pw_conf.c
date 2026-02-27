@@ -112,7 +112,7 @@ static char const *comments[_UC_FIELDS] =
 	"\n# Reuse gaps in gid sequence? (yes or no)\n",
 	"\n# Path to the NIS passwd file (blank or 'no' for none)\n",
 	"\n# Obtain default dotfiles from this directory\n",
-	"\n# Mail this file to new user (/etc/newuser.msg or no)\n",
+	"\n# Mail this file to new user (" _PATH_ETC "/newuser.msg or no)\n",
 	"\n# Log add/change/remove information in this file\n",
 	"\n# Root directory in which $HOME directory is created\n",
 	"\n# Mode for the new $HOME directory, will be modified by umask\n",

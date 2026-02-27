@@ -83,13 +83,13 @@ static int	shells(int, char *[]);
 static int	utmpx(int, char *[]);
 
 #ifndef _PATH_DISKTAB
-#define _PATH_DISKTAB "/etc/disktab"
+#define _PATH_DISKTAB _PATH_ETC "/disktab"
 #endif
 #ifndef _PATH_GETTYTAB
-#define _PATH_GETTYTAB "/etc/gettytab"
+#define _PATH_GETTYTAB _PATH_ETC "/gettytab"
 #endif
 #ifndef _PATH_PRINTCAP
-#define _PATH_PRINTCAP "/etc/printcap"
+#define _PATH_PRINTCAP _PATH_ETC "/printcap"
 #endif
 
 enum {

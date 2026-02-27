@@ -29,6 +29,9 @@ MAN5_DIR := $(DESTDIR)$(PREFIX)/share/man/man5
 MAN8_DIR := $(DESTDIR)$(PREFIX)/share/man/man8
 
 PW_OBJS := $(PW_SRCS:%.c=pw/%.o)
+CHKGRP_OBJS := chkgrp/chkgrp.o
+GETENT_OBJS := getent/getent.o getent/cap_compat.o
+LOGINS_OBJS := logins/logins.o
 
 all: pw chkgrp logins
 
@@ -48,14 +51,14 @@ $(OUTDIR):
 $(OUTDIR)/pw: $(PW_OBJS) | $(OUTDIR)
 	$(CC) $(LDFLAGS) -o $@ $^ $(PW_LIBS)
 
-$(OUTDIR)/chkgrp: chkgrp/chkgrp.c | $(OUTDIR)
-	$(CC) $(LDFLAGS) -o $@ $<
-
-$(OUTDIR)/getent: getent/getent.c getent/cap_compat.c | $(OUTDIR)
+$(OUTDIR)/chkgrp: $(CHKGRP_OBJS) | $(OUTDIR)
 	$(CC) $(LDFLAGS) -o $@ $^
 
-$(OUTDIR)/logins: logins/logins.c | $(OUTDIR)
-	$(CC) -o $@ $<
+$(OUTDIR)/getent: $(GETENT_OBJS) | $(OUTDIR)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+$(OUTDIR)/logins: $(LOGINS_OBJS) | $(OUTDIR)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
