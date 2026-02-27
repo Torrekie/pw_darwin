@@ -1,68 +1,78 @@
-.PHONY: pw chkgrp logins create-out-dir clean install
+.PHONY: all clean install create-out-dir pw chkgrp getent logins
 
 include pw/sources.mk
 
-PREFIX := /usr/local
+# Build configuration.
+PREFIX ?= /usr/local
+SYSCONFDIR ?= /etc
+OUTDIR ?= out
 
-SYSCONFDIR := /etc
 LIBUTIL_PREFIX ?= /usr/local
 LIBUTIL_INCLUDE ?= $(LIBUTIL_PREFIX)/include
 LIBUTIL_LIBDIR ?= $(LIBUTIL_PREFIX)/lib
 
-CPPFLAGS += -Iinclude -I$(LIBUTIL_INCLUDE) -D_PATH_ETC="\"$(SYSCONFDIR)\"" -Dst_mtim=st_mtimespec
-LDFLAGS += -L$(LIBUTIL_LIBDIR) -Wl,-rpath,$(LIBUTIL_LIBDIR)
+CPPFLAGS += \
+	-Iinclude \
+	-I$(LIBUTIL_INCLUDE) \
+	-D_PATH_ETC="\"$(SYSCONFDIR)\"" \
+	-Dst_mtim=st_mtimespec
+LDFLAGS += \
+	-L$(LIBUTIL_LIBDIR) \
+	-Wl,-rpath,$(LIBUTIL_LIBDIR)
 PW_LIBS ?= -lutil-fbsd -lcrypt-fbsd
 
-all: pw chkgrp logins create-out-dir
+# Install paths.
+BIN_DIR := $(DESTDIR)$(PREFIX)/bin
+SBIN_DIR := $(DESTDIR)$(PREFIX)/sbin
+MAN1_DIR := $(DESTDIR)$(PREFIX)/share/man/man1
+MAN5_DIR := $(DESTDIR)$(PREFIX)/share/man/man5
+MAN8_DIR := $(DESTDIR)$(PREFIX)/share/man/man8
 
-ifeq ($(shell if [ -d "out" ]; then echo exists; fi),exists)
-    has_dir := 1
-else
-    has_dir :=
-endif
+PW_OBJS := $(PW_SRCS:%.c=pw/%.o)
 
-create-out-dir: $(if $(has_dir),out)
+all: pw chkgrp logins
 
-out:
-	mkdir -p out
+create-out-dir: | $(OUTDIR)
 
-pw: out/pw
+pw: $(OUTDIR)/pw
 
-out/pw: $(PW_SRCS:%.c=pw/%.o)
-	$(CC) $(LDFLAGS) -o out/pw $^ $(PW_LIBS)
+chkgrp: $(OUTDIR)/chkgrp
 
-chkgrp: out/chkgrp
+getent: $(OUTDIR)/getent
 
-out/chkgrp:
-	$(CC) -o out/chkgrp chkgrp/chkgrp.c
+logins: $(OUTDIR)/logins
 
-logins: out/logins
+$(OUTDIR):
+	mkdir -p $@
 
-out/logins:
-	$(CC) -o out/logins logins/logins.c
+$(OUTDIR)/pw: $(PW_OBJS) | $(OUTDIR)
+	$(CC) $(LDFLAGS) -o $@ $^ $(PW_LIBS)
+
+$(OUTDIR)/chkgrp: chkgrp/chkgrp.c | $(OUTDIR)
+	$(CC) $(LDFLAGS) -o $@ $<
+
+$(OUTDIR)/getent: getent/getent.c getent/cap_compat.c | $(OUTDIR)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+$(OUTDIR)/logins: logins/logins.c | $(OUTDIR)
+	$(CC) -o $@ $<
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f */*.o out/*
+	rm -f */*.o $(OUTDIR)/*
 
-install: all
-	# install pw
-	install -d $(DESTDIR)/$(PREFIX)/bin
-	install -d $(DESTDIR)/$(PREFIX)/sbin
-	install -m 0755 out/pw $(DESTDIR)/$(PREFIX)/sbin/pw
-	# install adduser
-	install -m 0755 adduser/adduser.sh $(DESTDIR)/$(PREFIX)/sbin/adduser
-	install -m 0755 adduser/rmuser.sh $(DESTDIR)/$(PREFIX)/sbin/rmuser
-	# install chkgrp
-	install -m 0755 out/chkgrp $(DESTDIR)/$(PREFIX)/sbin/chkgrp
-	# install logins
-	install -m 0755 out/logins $(DESTDIR)/$(PREFIX)/bin/logins
-	# install vigr
-	install -m 0755 vigr/vigr.sh $(DESTDIR)/$(PREFIX)/sbin/vigr
-	# install doc
-	install -d $(DESTDIR)/$(PREFIX)/share/man/man{1,5,8}
-	install -m 0644 */*.1 $(DESTDIR)/$(PREFIX)/share/man/man1/
-	install -m 0644 */*.5 $(DESTDIR)/$(PREFIX)/share/man/man5/
-	install -m 0644 */*.8 $(DESTDIR)/$(PREFIX)/share/man/man8/
+install: all getent
+	install -d $(BIN_DIR) $(SBIN_DIR)
+	install -m 0755 $(OUTDIR)/pw $(SBIN_DIR)/pw
+	install -m 0755 adduser/adduser.sh $(SBIN_DIR)/adduser
+	install -m 0755 adduser/rmuser.sh $(SBIN_DIR)/rmuser
+	install -m 0755 $(OUTDIR)/chkgrp $(SBIN_DIR)/chkgrp
+	install -m 0755 $(OUTDIR)/getent $(BIN_DIR)/getent
+	install -m 0755 $(OUTDIR)/logins $(BIN_DIR)/logins
+	install -m 0755 vigr/vigr.sh $(SBIN_DIR)/vigr
+	install -d $(MAN1_DIR) $(MAN5_DIR) $(MAN8_DIR)
+	install -m 0644 */*.1 $(MAN1_DIR)/
+	install -m 0644 */*.5 $(MAN5_DIR)/
+	install -m 0644 */*.8 $(MAN8_DIR)/
