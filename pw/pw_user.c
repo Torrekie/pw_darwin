@@ -61,17 +61,19 @@ extern char **environ;
 static		char locked_str[] = "*LOCKED*";
 
 static struct passwd fakeuser = {
-	"nouser",
-	"*",
-	-1,
-	-1,
-	0,
-	"",
-	"User &",
-	_PATH_NONEXIST,
-	_PATH_BSHELL,
-	0,
-	0
+	.pw_name   = "nouser",
+	.pw_passwd = "*",
+	.pw_uid    = -1,
+	.pw_gid    = -1,
+	.pw_change = 0,
+	.pw_class  = "",
+	.pw_gecos  = "User &",
+	.pw_dir    = _PATH_NONEXIST,
+	.pw_shell  = _PATH_BSHELL,
+	.pw_expire = 0,
+#ifdef __FreeBSD__
+	.pw_fields = 0
+#endif
 };
 
 static int	 print_user(struct passwd *pwd, bool pretty, bool v7);
