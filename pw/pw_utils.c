@@ -56,11 +56,20 @@ pw_checkfd(char *nptr)
 	return (fd);
 }
 
+#ifdef __APPLE__
+intmax_t
+pw_checkid(char *nptr, intmax_t maxval)
+#else
 uintmax_t
 pw_checkid(char *nptr, uintmax_t maxval)
+#endif
 {
 	const char *errstr = NULL;
+#ifdef __APPLE__
+	intmax_t id;
+#else
 	uintmax_t id;
+#endif
 
 	id = strtounum(nptr, 0, maxval, &errstr);
 	if (errstr)
@@ -76,10 +85,9 @@ pw_id_numeric(const char *nptr)
 	if (p == NULL || *p == '\0')
 		return (false);
 #ifdef __APPLE__
+	/* Surprise! signed ids! */
 	if (*p == '+' || *p == '-')
 		p++;
-#elif defined(__FreeBSD__)
-	/* FreeBSD CLI IDs are unsigned decimal. */
 #endif
 	if (*p == '\0')
 		return (false);
@@ -95,17 +103,7 @@ intmax_t
 pw_checkuid(char *nptr)
 {
 #ifdef __APPLE__
-	const char *errstr = NULL;
-	intmax_t id;
-
-	id = strtonum(nptr, LLONG_MIN, LLONG_MAX, &errstr);
-	if (errstr != NULL)
-		errx(EX_USAGE, "Bad id '%s': %s", nptr, errstr);
-	if ((intmax_t)(id_t)id != id)
-		errx(EX_USAGE, "Bad id '%s': too large", nptr);
-	return (id);
-#elif defined(__FreeBSD__)
-	return ((intmax_t)pw_checkid(nptr, UID_MAX));
+	return pw_checkid(nptr, INT_MAX);
 #else
 	return ((intmax_t)pw_checkid(nptr, UID_MAX));
 #endif
@@ -115,17 +113,7 @@ intmax_t
 pw_checkgid(char *nptr)
 {
 #ifdef __APPLE__
-	const char *errstr = NULL;
-	intmax_t id;
-
-	id = strtonum(nptr, LLONG_MIN, LLONG_MAX, &errstr);
-	if (errstr != NULL)
-		errx(EX_USAGE, "Bad id '%s': %s", nptr, errstr);
-	if ((intmax_t)(id_t)id != id)
-		errx(EX_USAGE, "Bad id '%s': too large", nptr);
-	return (id);
-#elif defined(__FreeBSD__)
-	return ((intmax_t)pw_checkid(nptr, GID_MAX));
+	return pw_checkid(nptr, INT_MAX);
 #else
 	return ((intmax_t)pw_checkid(nptr, GID_MAX));
 #endif

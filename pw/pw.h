@@ -38,8 +38,8 @@
 #ifdef __APPLE__
 #define PW_UID_PRI "jd"
 #define PW_GID_PRI "jd"
-#define PW_UID_ARG(_uid) ((intmax_t)(id_t)(_uid))
-#define PW_GID_ARG(_gid) ((intmax_t)(id_t)(_gid))
+#define PW_UID_ARG(_uid) ((intmax_t)(_uid))
+#define PW_GID_ARG(_gid) ((intmax_t)(_gid))
 #elif defined(__FreeBSD__)
 #define PW_UID_PRI "ju"
 #define PW_GID_PRI "ju"
@@ -110,7 +110,11 @@ int pw_user_show(int argc, char **argv, char *name);
 int pw_user_unlock(int argc, char **argv, char *name);
 int pw_groupnext(struct userconf *cnf, bool quiet);
 char *pw_checkname(char *name, int gecos);
+#if defined(__APPLE__)
+intmax_t pw_checkid(char *nptr, intmax_t maxval);
+#else
 uintmax_t pw_checkid(char *nptr, uintmax_t maxval);
+#endif
 intmax_t pw_checkuid(char *nptr);
 intmax_t pw_checkgid(char *nptr);
 bool pw_id_numeric(const char *nptr);
